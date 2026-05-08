@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Implementation Projects Demo</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      padding: 40px;
+    }
+
+    button {
+      padding: 10px 20px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    .project {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .create-section {
+        width: 700px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    .form-grid input,
+    .form-grid select {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+    }
+
+    .popup {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+    }
+    
+    .popup-content {
+        background: white;
+        width: 400px;
+        margin: 100px auto;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    
+  </style>
+</head>
+
+<body>
+
+  <h1>Implementation Projects Demo</h1>
+
+
+  <div class="create-section">
+    
+    <h2>Create Project</h2>
+    
+    <div class="form-grid">
+      
+      <div>
+        <label>Project Name</label><br>
+        <input id="projectName">
+      </div>
+      
+      <div>
+        <label>Account</label><br>
+        <select id="accountSelect"></select>
+      </div>
+      
+      <div>
+        <label>Contact</label><br>
+        <select id="contactSelect"></select>
+      </div>
+      
+      <div>
+        <label>Budget</label><br>
+        <input id="budgetField" type="number">
+      </div>
+      
+    </div>
+    
+    <br>
+
+  <button onclick="createProject()">
+    Create Project
+  </button>
+
+</div>
+
+<hr>
+
+  
+  <button onclick="loadProjects()">
+    Load Projects
+  </button>
+
+  <select id="statusFilter">
+    <option value="">All Statuses</option>
+    <option value="Draft">Draft</option>
+    <option value="Active">Active</option>
+    <option value="On Hold">On Hold</option>
+    <option value="Completed">Completed</option>
+    <option value="Cancelled">Cancelled</option>
+  </select>
+  
+  <div id="timesheetPopup" class="popup">
+    
+    <div class="popup-content">
+      
+      <h3>Create Timesheet</h3>
+      
+      <input type="hidden" id="timesheetProjectId">
+      
+      <label>Hours</label><br>
+      <input id="timesheetHours" type="number"><br><br>
+      
+      <label>Description</label><br>
+      <textarea id="timesheetDescription"></textarea><br><br>
+      
+      <label>
+        <input
+          type="checkbox"
+          id="timesheetBillable"
+          checked
+          >
+        Billable
+      </label>
+      
+      <br><br>
+      
+      <button onclick="createTimesheet()">
+        Save Timesheet
+      </button>
+      
+      <button onclick="closeTimesheetPopup()">
+        Cancel
+      </button>
+      
+    </div>
+    
+</div>
+  <div id="results"></div>
+
+  <script>
+    async function loadProjects() {
+
+      const resultsDiv = document.getElementById("results");
+
+      resultsDiv.innerHTML = "Loading...";
+
+      try {
+
+          const status = document.getElementById("statusFilter").value;
+
+          let url = "/implementation-projects";
+
+          if (status) {
+              url += "?status=" + encodeURIComponent(status);
+          }
+
+          const response = await fetch(url);
+          
+          const data = await response.json();
+
+          resultsDiv.innerHTML = "";
+
+          const projects = data.data || [];
+
+          if (projects.length === 0) {
+              resultsDiv.innerHTML = "No projects found";
+              return;
+          }
+          
+          projects.forEach((project) => {
+
+          const div = document.createElement("div");
+
+          div.className = "project";
+
+          div.innerHTML = `
+            <strong>${project.Name || "No Name"}</strong><br>
+            Status: ${project.Status || "No Status"}<br>
+            Account: ${project.Account?.name || "No Account"}<br>
+            Total Hours: ${project.TotalHours || "0"}<br>
+            Budget: ${project.Budget || "0"}<br>
+
+            <br><br>
+            <button onclick="loadTimesheets('${project.id}')">
+               View Timesheets
+            </button>
+
+            <button onclick="openTimesheetForm('${project.id}')">
+             Create Timesheet
+            </button>
+          `;
+
+          resultsDiv.appendChild(div);
+        });
+
+      } catch (error) {
+
+        console.error(error);
+
+        resultsDiv.innerHTML = "Error loading projects";
+      }
+    }
+
+    async function loadTimesheets(projectId) {
+
+        try {
+            
+            const response = await fetch(
+                "/timesheets/" + projectId
+            );
+            
+            const data = await response.json();
+            
+            const timesheets = data.data || [];
+            
+            if (timesheets.length === 0) {
+                alert("No timesheets found");
+                return;
+            }
+            
+            let message = "Timesheets:\n\n";
+            
+            timesheets.forEach(function(timesheet) {
+                
+                message += "- " + (timesheet.Name || "Unnamed") + "\n";
+            });
+            
+            alert(message);
+            
+        } catch (error) {
+            
+            alert("Error loading timesheets");
+        }
+    }
+
+    async function loadDropdowns() {
+
+        // Accounts
+        const accountsResponse = await fetch("/accounts");
+        const accountsData = await accountsResponse.json();
+        
+        const accountSelect =
+              document.getElementById("accountSelect");
+        
+        (accountsData.data || []).forEach(function(account) {
+            
+            const option = document.createElement("option");
+
+            option.value = account.id;
+            option.text = account.Account_Name;
+
+            accountSelect.appendChild(option);
+        });
+
+        // Contacts
+        const contactsResponse = await fetch("/contacts");
+        const contactsData = await contactsResponse.json();
+
+        const contactSelect =
+              document.getElementById("contactSelect");
+
+        (contactsData.data || []).forEach(function(contact) {
+
+            const option = document.createElement("option");
+
+            option.value = contact.id;
+            option.text =
+                contact.Full_Name || contact.Last_Name;
+
+            contactSelect.appendChild(option);
+        });
+    }
+
+    async function createProject() {
+        
+        const name =
+              document.getElementById("projectName").value;
+        
+        const accountId =
+              document.getElementById("accountSelect").value;
+        
+        const contactId =
+              document.getElementById("contactSelect").value;
+        
+        const budget =
+              document.getElementById("budgetField").value;
+        
+        
+        const url =
+              "/create-project" +
+              "?name=" + encodeURIComponent(name) +
+              "&accountId=" + encodeURIComponent(accountId) +
+              "&contactId=" + encodeURIComponent(contactId) +
+              "&budget=" + encodeURIComponent(budget);
+        
+        const response = await fetch(url);
+        
+        const data = await response.json();
+        
+        
+        alert("Project created!");
+        
+        document.getElementById("projectName").value = "";
+        document.getElementById("budgetField").value = "";
+        
+        document.getElementById("accountSelect").selectedIndex = 0;
+        document.getElementById("contactSelect").selectedIndex = 0;
+        
+        loadProjects();
+        
+    }
+    
+    function openTimesheetForm(projectId) {
+
+        document.getElementById(
+            "timesheetProjectId"
+        ).value = projectId;
+        
+        document.getElementById(
+            "timesheetPopup"
+        ).style.display = "block";
+
+        document.getElementById(
+            "timesheetHours"
+        ).value = "";
+        
+        document.getElementById(
+            "timesheetDescription"
+        ).value = "";
+        
+        document.getElementById(
+            "timesheetBillable"
+        ).checked = true;
+    }
+    
+    function closeTimesheetPopup() {
+        
+        document.getElementById(
+            "timesheetPopup"
+        ).style.display = "none";
+    }
+    
+    async function createTimesheet() {
+        
+        const projectId =
+              document.getElementById(
+                  "timesheetProjectId"
+              ).value;
+        
+        const hours =
+              document.getElementById(
+                  "timesheetHours"
+              ).value;
+        
+        const description =
+              document.getElementById(
+                  "timesheetDescription"
+              ).value;
+        
+        const billable =
+              document.getElementById(
+                  "timesheetBillable"
+              ).checked;
+        
+        const url =
+              "/create-timesheet" +
+              "?projectId=" + encodeURIComponent(projectId) +
+              "&hours=" + encodeURIComponent(hours) +
+              "&description=" + encodeURIComponent(description) +
+              "&billable=" + encodeURIComponent(billable);
+        
+        const response = await fetch(url);
+        
+        const data = await response.json();
+        
+        alert("Timesheet created!");
+        
+        document.getElementById(
+            "timesheetHours"
+        ).value = "";
+        
+        document.getElementById(
+            "timesheetDescription"
+        ).value = "";
+        
+        document.getElementById(
+            "timesheetBillable"
+        ).checked = true;
+        
+        closeTimesheetPopup();
+    }
+    
+    loadDropdowns();
+    
+    </script>
+  
+  
+</body>
+</html>
