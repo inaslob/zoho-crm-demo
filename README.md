@@ -16,6 +16,7 @@ To get the application running on your local machine:
 4. **Deployment:**
    * Open your terminal in the project folder.
    * Run `npm install` to load dependencies (Express and Axios).
+   * Setup environment variable API_KEY to have the obtained token value.
    * Start the server by running `node server.js`.
 5. **Access:** Open your browser and go to `http://localhost:3000`.
 
